@@ -11,25 +11,25 @@ import cz.msebera.android.httpclient.Header;
 
 import org.json.JSONObject;
 
-public class MarkerDesp {
+class MarkerDesp {
 
     private Handler handler;
+    private String server_ip = "";
 
-    public MarkerDesp(Handler iHandler) {
+    MarkerDesp(Handler iHandler) {
         handler = iHandler;
     }
 
-    public void getDetail() {
+    void getDetail() {
         AsyncHttpClient client = new AsyncHttpClient();
         RequestParams params = new RequestParams();
-        client.post("http://192.168.1.100:8080/IPS/GetDetail", params, new AsyncHttpResponseHandler() {
+        client.post(ServerInfo.ipAddr + "/IPS_Server/GetDetail", params, new AsyncHttpResponseHandler() {
             @Override
             public void onSuccess(int statusCode, Header[] headers, byte[] response) {
                 Message msg = new Message();
                 try {
                     String str = new String(response, "UTF-8");
-                    JSONObject detail = new JSONObject(str);
-                    msg.obj = detail;
+                    msg.obj = new JSONObject(str);
                     msg.what = 1;
                 } catch (Exception e) {
                     msg.what = 0;

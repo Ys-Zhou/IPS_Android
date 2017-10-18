@@ -17,7 +17,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-public class MarkerCom {
+class MarkerCom {
 
     private BleUcodeManager mBleUcodeMgr;
     private Context applicationContext;
@@ -27,13 +27,13 @@ public class MarkerCom {
     private static final String TAGS_APIKEY = null;
     private static final String HEXES = "0123456789ABCDEF";
 
-    public MarkerCom(Context iApplicationContext, Handler iHandler, String iSerialNumber) {
+    MarkerCom(Context iApplicationContext, Handler iHandler, String iSerialNumber) {
         applicationContext = iApplicationContext;
         handler = iHandler;
         serialNumber = iSerialNumber;
     }
 
-    public void start() {
+    void start() {
         mBleUcodeMgr = new BleUcodeManager(applicationContext, TAGS_APIKEY);
 
         // Set default communicating level for unknown markers
@@ -47,7 +47,7 @@ public class MarkerCom {
         mBleUcodeMgr.start();
     }
 
-    public void stop() {
+    void stop() {
         mBleUcodeMgr.unregisterListener(mBleUcodeManagerListener);
         mBleUcodeMgr.stop();
     }
@@ -92,15 +92,10 @@ public class MarkerCom {
         AsyncHttpClient client = new AsyncHttpClient();
         RequestParams params = new RequestParams();
         params.put("jsonIn", jsonIn.toString());
-        client.post("http://192.168.1.100:8080/IPS/UploadData", params, new AsyncHttpResponseHandler() {
+        client.post(ServerInfo.ipAddr + "/IPS_Server/UploadData", params, new AsyncHttpResponseHandler() {
             @Override
             public void onSuccess(int statusCode, Header[] headers, byte[] response) {
-                String str = "";
-                try {
-                    str = new String(response, "UTF-8");
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+
             }
 
             @Override
