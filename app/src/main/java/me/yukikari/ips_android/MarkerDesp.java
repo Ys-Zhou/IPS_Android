@@ -14,7 +14,6 @@ import org.json.JSONObject;
 class MarkerDesp {
 
     private Handler handler;
-    private String server_ip = "";
 
     MarkerDesp(Handler iHandler) {
         handler = iHandler;
@@ -23,7 +22,7 @@ class MarkerDesp {
     void getDetail() {
         AsyncHttpClient client = new AsyncHttpClient();
         RequestParams params = new RequestParams();
-        client.post(ServerInfo.ipAddr + "/IPS_Server/GetDetail", params, new AsyncHttpResponseHandler() {
+        client.post(Info.ipAddr + "/IPS_Server/GetDetail", params, new AsyncHttpResponseHandler() {
             @Override
             public void onSuccess(int statusCode, Header[] headers, byte[] response) {
                 Message msg = new Message();

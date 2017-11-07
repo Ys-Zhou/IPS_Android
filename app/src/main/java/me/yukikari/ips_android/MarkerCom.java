@@ -1,7 +1,8 @@
 package me.yukikari.ips_android;
 
-import android.content.Context;
-import android.os.Handler;
+import android.app.Service;
+import android.content.Intent;
+import android.os.IBinder;
 import android.os.Message;
 
 import com.loopj.android.http.AsyncHttpClient;
@@ -17,37 +18,50 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-class MarkerCom {
+public class MarkerCom extends Service {
 
     private BleUcodeManager mBleUcodeMgr;
-    private Context applicationContext;
-    private Handler handler;
-    private String serialNumber;
 
     private static final String TAGS_APIKEY = null;
     private static final String HEXES = "0123456789ABCDEF";
 
-    MarkerCom(Context iApplicationContext, Handler iHandler, String iSerialNumber) {
-        applicationContext = iApplicationContext;
-        handler = iHandler;
-        serialNumber = iSerialNumber;
+    @Override
+    public void onCreate() {
+        super.onCreate();
     }
 
-    void start() {
-        mBleUcodeMgr = new BleUcodeManager(applicationContext, TAGS_APIKEY);
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        start();
+        return super.onStartCommand(intent, flags, startId);
+    }
 
-        // Set default communicating level for unknown markers
-        mBleUcodeMgr.setDefaultDistance(0.5, 5);
-        mBleUcodeMgr.setDefaultDistance(1.0, 4);
-        mBleUcodeMgr.setDefaultDistance(1.5, 3);
-        mBleUcodeMgr.setDefaultDistance(2.0, 2);
-        mBleUcodeMgr.setDefaultDistance(3.0, 1);
-        mBleUcodeMgr.setDefaultDistance(4.0, 0);
+    @Override
+    public void onDestroy() {
+        stop();
+        super.onDestroy();
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
+
+    private void start() {
+        mBleUcodeMgr = new BleUcodeManager(this, TAGS_APIKEY);
+
+        // Set default communicating level
+//        mBleUcodeMgr.setDefaultDistance(0.5, 5);
+//        mBleUcodeMgr.setDefaultDistance(1.0, 4);
+//        mBleUcodeMgr.setDefaultDistance(1.5, 3);
+//        mBleUcodeMgr.setDefaultDistance(2.0, 2);
+        mBleUcodeMgr.setDefaultDistance(1.0, 1);
+        mBleUcodeMgr.setDefaultDistance(1.5, 0);
         mBleUcodeMgr.registerListener(mBleUcodeManagerListener);
         mBleUcodeMgr.start();
     }
 
-    void stop() {
+    private void stop() {
         mBleUcodeMgr.unregisterListener(mBleUcodeManagerListener);
         mBleUcodeMgr.stop();
     }
@@ -71,16 +85,16 @@ class MarkerCom {
             //update UI
             Message msg = new Message();
             msg.obj = markerId;
-            if (from < to && to >= 3) msg.what = 1;
-            else if (from > to && to <= 2) msg.what = 0;
-            handler.sendMessage(msg);
+            if (from < to && to >= 1) msg.what = 1;
+            else if (from > to && to <= 0) msg.what = 0;
+            MainActivity.viewHandler.sendMessage(msg);
         }
     };
 
     private void uploadData(final String markerId, final String date, final int from, final int to) {
         JSONObject jsonIn = new JSONObject();
         try {
-            jsonIn.put("userId", serialNumber);
+            jsonIn.put("userId", MainActivity.serialNumber);
             jsonIn.put("markerId", markerId);
             jsonIn.put("date", date);
             jsonIn.put("from", from);
@@ -92,7 +106,7 @@ class MarkerCom {
         AsyncHttpClient client = new AsyncHttpClient();
         RequestParams params = new RequestParams();
         params.put("jsonIn", jsonIn.toString());
-        client.post(ServerInfo.ipAddr + "/IPS_Server/UploadData", params, new AsyncHttpResponseHandler() {
+        client.post(Info.ipAddr + "/IPS_Server/UploadData", params, new AsyncHttpResponseHandler() {
             @Override
             public void onSuccess(int statusCode, Header[] headers, byte[] response) {
 

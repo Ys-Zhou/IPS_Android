@@ -13,19 +13,26 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.os.Build;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import java.util.LinkedList;
+import java.lang.ref.WeakReference;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+//import java.util.LinkedList;
+import java.util.Locale;
 
 import org.json.JSONObject;
 import org.json.JSONArray;
 
 public class MainActivity extends AppCompatActivity {
 
-    private MarkerCom markerCom;
+    static Handler viewHandler;
+    static String serialNumber;
+
     private LinearLayout upperContentView;
-    private LinkedList<String> markerIdList;
+    //    private LinkedList<String> markerIdList;
     private JSONObject detail;
 
     @Override
@@ -33,10 +40,12 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        viewHandler = new ViewHandler(this);
+        serialNumber = Build.SERIAL;
+
         upperContentView = (LinearLayout) findViewById(R.id.viewfiled);
-        markerIdList = new LinkedList<>();
+//        markerIdList = new LinkedList<>();
         detail = new JSONObject();
-        String serialNumber = Build.SERIAL;
 
         //Open bluetooth adapter
         BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
@@ -44,7 +53,7 @@ public class MainActivity extends AppCompatActivity {
             adapter.enable();
         }
 
-        //Connect server
+        //Check the connection to server
         if (!isWiFi() && !isMobile()) {
             AlertDialog.Builder builder = new AlertDialog.Builder(this);
             builder.setTitle("Alert!");
@@ -53,11 +62,11 @@ public class MainActivity extends AppCompatActivity {
             builder.show();
         }
 
-        MarkerDesp markerDesp = new MarkerDesp(cHandler);
+        MarkerDesp markerDesp = new MarkerDesp(new ConnectionHandler(this));
         markerDesp.getDetail();
 
-        //Check
-        while (!adapter.isEnabled() || detail.equals(null)) {
+        //Check Bluetooth
+        while (!adapter.isEnabled() || detail == null) {
             try {
                 Thread.sleep(500);
             } catch (InterruptedException e) {
@@ -65,76 +74,101 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        markerCom = new MarkerCom(getApplicationContext(), handler, serialNumber);
-        markerCom.start();
+        Intent intent = new Intent(this, MarkerCom.class);
+        startService(intent);
     }
 
     @Override
     protected void onDestroy() {
+        Intent intent = new Intent(this, MarkerCom.class);
+        stopService(intent);
         super.onDestroy();
-        markerCom.stop();
     }
 
-    //WiFi
-    public boolean isWiFi() {
+    //Check WiFi
+    private boolean isWiFi() {
         ConnectivityManager connectivityManager = (ConnectivityManager) this
                 .getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
-        if (networkInfo != null && networkInfo.getType() == ConnectivityManager.TYPE_WIFI) {
-            return true;
+        NetworkInfo networkInfo;
+        try {
+            networkInfo = connectivityManager.getActiveNetworkInfo();
+        } catch (Exception e) {
+            return false;
         }
-        return false;
+        return networkInfo != null && networkInfo.getType() == ConnectivityManager.TYPE_WIFI;
     }
 
-    //4G
-    public boolean isMobile() {
+    //Check 4G
+    private boolean isMobile() {
         ConnectivityManager connectivityManager = (ConnectivityManager) this
                 .getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
-        if (networkInfo != null && networkInfo.getType() == ConnectivityManager.TYPE_MOBILE) {
-            return true;
+        NetworkInfo networkInfo;
+        try {
+            networkInfo = connectivityManager.getActiveNetworkInfo();
+        } catch (Exception e) {
+            return false;
         }
-        return false;
+        return networkInfo != null && networkInfo.getType() == ConnectivityManager.TYPE_MOBILE;
     }
 
-    private Handler cHandler = new Handler() {
+    private static class ConnectionHandler extends Handler {
+        private final WeakReference<MainActivity> weakReference;
+
+        ConnectionHandler(MainActivity mainActivityInstance) {
+            weakReference = new WeakReference<>(mainActivityInstance);
+        }
+
         @Override
         public void handleMessage(Message msg) {
+            MainActivity mainActivity = weakReference.get();
             super.handleMessage(msg);
-            switch (msg.what) {
-                case 0:
-                    AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-                    builder.setTitle("Alert!");
-                    builder.setMessage("Cannot connect to server.");
-                    builder.setNegativeButton("OK", null);
-                    builder.show();
-                    break;
-                case 1:
-                    detail = (JSONObject) msg.obj;
-                    break;
+            if (mainActivity != null) {
+                switch (msg.what) {
+                    case 0:
+                        AlertDialog.Builder builder = new AlertDialog.Builder(mainActivity);
+                        builder.setTitle("Alert!");
+                        builder.setMessage("Cannot connect to server.");
+                        builder.setNegativeButton("OK", null);
+                        builder.show();
+                        break;
+                    case 1:
+                        mainActivity.detail = (JSONObject) msg.obj;
+                        break;
+                }
             }
         }
-    };
+    }
 
-    private Handler handler = new Handler() {
+    private static class ViewHandler extends Handler {
+        private final WeakReference<MainActivity> weakReference;
+
+        ViewHandler(MainActivity mainActivityInstance) {
+            weakReference = new WeakReference<>(mainActivityInstance);
+        }
+
         @Override
         public void handleMessage(Message msg) {
+            MainActivity mainActivity = weakReference.get();
             super.handleMessage(msg);
-            String markerId = (String) msg.obj;
-            switch (msg.what) {
-                case 0:
-                    deleteView(markerId);
-                    break;
-                case 1:
-                    createView(markerId);
-                    break;
+            if (mainActivity != null) {
+                String markerId = (String) msg.obj;
+                switch (msg.what) {
+                    case 0:
+                        //mainActivity.deleteView(markerId);
+                        mainActivity.createView(markerId, 0);
+                        break;
+                    case 1:
+                        //mainActivity.createView(markerId);
+                        mainActivity.createView(markerId, 1);
+                        break;
+                }
             }
         }
-    };
+    }
 
-    private void createView(String markerId) {
-        int index = markerIdList.indexOf(markerId);
-        if (index != -1) return;
+    private void createView(String markerId, int type) {
+//        int index = markerIdList.indexOf(markerId);
+//        if (index != -1) return;
 
         String desc;
         String url;
@@ -148,12 +182,60 @@ public class MainActivity extends AppCompatActivity {
         }
         final String fUrl = url;
 
-        TextView textView = new TextView(MainActivity.this);
-        textView.setText(desc);
-        textView.setTextColor(Color.WHITE);
-        textView.setBackgroundColor(Color.BLUE);
+        //Current time
+        SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.JAPAN);
+        Date cDate = new Date(System.currentTimeMillis());
+        String date = df.format(cDate);
 
-        textView.setOnClickListener(new View.OnClickListener() {
+        int width = upperContentView.getWidth();
+        int height = (int) (width * 0.4);
+
+        //thirdLayout
+        LinearLayout thirdLayout = new LinearLayout(this);
+        thirdLayout.setOrientation(LinearLayout.VERTICAL);
+
+        LinearLayout.LayoutParams thirdLayoutParams = new LinearLayout.LayoutParams(
+                height, height);
+        thirdLayout.setLayoutParams(thirdLayoutParams);
+
+        //secondLayout
+        LinearLayout secondLayout = new LinearLayout(this);
+        secondLayout.setOrientation(LinearLayout.HORIZONTAL);
+
+        LinearLayout.LayoutParams secondLayoutParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                height);
+        secondLayoutParams.setMargins(0, 16, 0, 16);
+        secondLayout.setLayoutParams(secondLayoutParams);
+
+        //stateImageView
+        ImageView stateImageView = new ImageView(this);
+        if (type == 1) {
+            stateImageView.setImageResource(R.drawable.enter);
+        } else {
+            stateImageView.setImageResource(R.drawable.exit);
+        }
+        LinearLayout.LayoutParams stateImageViewLayoutParams = new LinearLayout.LayoutParams(
+                (int) (height * 0.7), (int) (height * 0.7));
+        stateImageView.setLayoutParams(stateImageViewLayoutParams);
+
+        //textView
+        TextView textView1 = new TextView(this);
+        textView1.setText(desc);
+        textView1.setTextColor(Color.BLACK);
+
+        TextView textView2 = new TextView(this);
+        textView2.setText(date);
+
+        //descImageView
+        ImageView descImageView = new ImageView(this);
+        descImageView.setImageResource(Info.getResId(desc));
+
+        LinearLayout.LayoutParams descImageViewLayoutParams = new LinearLayout.LayoutParams(width - height, height);
+        descImageView.setLayoutParams(descImageViewLayoutParams);
+
+        //Set OnClick
+        secondLayout.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 Intent intent = new Intent(MainActivity.this, WebActivity.class);
@@ -162,22 +244,21 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        int width = upperContentView.getWidth();
-        int height = (int) (width * 0.2);
-        LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                height);
-        layoutParams.setMargins(0, 16, 0, 16);
-        textView.setLayoutParams(layoutParams);
+        thirdLayout.addView(stateImageView);
+        thirdLayout.addView(textView1);
+        thirdLayout.addView(textView2);
 
-        markerIdList.add(markerId);
-        upperContentView.addView(textView);
+        secondLayout.addView(thirdLayout);
+        secondLayout.addView(descImageView);
+
+//        markerIdList.add(markerId);
+        upperContentView.addView(secondLayout);
     }
 
-    private void deleteView(String markerId) {
-        int index = markerIdList.indexOf(markerId);
-        if (index == -1) return;
-        markerIdList.remove(index);
-        upperContentView.removeViewAt(index);
-    }
+//    private void deleteView(String markerId) {
+//        int index = markerIdList.indexOf(markerId);
+//        if (index == -1) return;
+//        markerIdList.remove(index);
+//        upperContentView.removeViewAt(index);
+//    }
 }
