@@ -39,10 +39,10 @@ class MarkerCom {
         // Set default communicating level for unknown markers
         mBleUcodeMgr.setDefaultDistance(0.5, 5);
         mBleUcodeMgr.setDefaultDistance(1.0, 4);
-        mBleUcodeMgr.setDefaultDistance(2.0, 3);
-        mBleUcodeMgr.setDefaultDistance(4.0, 2);
-        mBleUcodeMgr.setDefaultDistance(6.0, 1);
-        mBleUcodeMgr.setDefaultDistance(8.0, 0);
+        mBleUcodeMgr.setDefaultDistance(1.5, 3);
+        mBleUcodeMgr.setDefaultDistance(2.0, 2);
+        mBleUcodeMgr.setDefaultDistance(3.0, 1);
+        mBleUcodeMgr.setDefaultDistance(4.0, 0);
         mBleUcodeMgr.registerListener(mBleUcodeManagerListener);
         mBleUcodeMgr.start();
     }
