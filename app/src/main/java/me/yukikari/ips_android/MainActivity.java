@@ -34,6 +34,7 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayout upperContentView;
     //    private LinkedList<String> markerIdList;
     private JSONObject detail;
+    private boolean hasLeave;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,6 +47,7 @@ public class MainActivity extends AppCompatActivity {
         upperContentView = (LinearLayout) findViewById(R.id.viewfiled);
 //        markerIdList = new LinkedList<>();
         detail = new JSONObject();
+        hasLeave = true;
 
         //Open bluetooth adapter
         BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
@@ -188,7 +190,7 @@ public class MainActivity extends AppCompatActivity {
         String date = df.format(cDate);
 
         int width = upperContentView.getWidth();
-        int height = (int) (width * 0.4);
+        int height = (int) (width * 0.3);
 
         //thirdLayout
         LinearLayout thirdLayout = new LinearLayout(this);
@@ -216,7 +218,7 @@ public class MainActivity extends AppCompatActivity {
             stateImageView.setImageResource(R.drawable.exit);
         }
         LinearLayout.LayoutParams stateImageViewLayoutParams = new LinearLayout.LayoutParams(
-                (int) (height * 0.7), (int) (height * 0.7));
+                (int) (height * 0.5), (int) (height * 0.5));
         stateImageView.setLayoutParams(stateImageViewLayoutParams);
 
         //textView
