@@ -1,7 +1,7 @@
 package me.yukikari.ips_android;
 
 class Info {
-    static String ipAddr = "http://192.168.1.105:8080";
+    static String ipAddr = "http://192.168.0.14:8080";
 
     static int getResId(String desc) {
         switch (desc) {

@@ -51,12 +51,12 @@ public class MarkerCom extends Service {
         mBleUcodeMgr = new BleUcodeManager(this, TAGS_APIKEY);
 
         // Set default communicating level
-//        mBleUcodeMgr.setDefaultDistance(0.5, 5);
-//        mBleUcodeMgr.setDefaultDistance(1.0, 4);
-//        mBleUcodeMgr.setDefaultDistance(1.5, 3);
-//        mBleUcodeMgr.setDefaultDistance(2.0, 2);
-        mBleUcodeMgr.setDefaultDistance(1.0, 1);
-        mBleUcodeMgr.setDefaultDistance(1.5, 0);
+        mBleUcodeMgr.setDefaultDistance(0.5, 5);
+        mBleUcodeMgr.setDefaultDistance(1.0, 4);
+        mBleUcodeMgr.setDefaultDistance(1.5, 3);
+        mBleUcodeMgr.setDefaultDistance(2.0, 2);
+        mBleUcodeMgr.setDefaultDistance(2.5, 1);
+        mBleUcodeMgr.setDefaultDistance(3.0, 0);
         mBleUcodeMgr.registerListener(mBleUcodeManagerListener);
         mBleUcodeMgr.start();
     }
@@ -85,9 +85,15 @@ public class MarkerCom extends Service {
             //update UI
             Message msg = new Message();
             msg.obj = markerId;
-            if (from < to && to >= 1) msg.what = 1;
-            else if (from > to && to <= 0) msg.what = 0;
-            MainActivity.viewHandler.sendMessage(msg);
+            if (from < to && to == 3) {
+                msg.what = 1;
+                MainActivity.viewHandler.sendMessage(msg);
+            }
+//            else if (from > to && to == 1) {
+//                msg.what = 0;
+//                MainActivity.viewHandler.sendMessage(msg);
+//            }
+
         }
     };
 

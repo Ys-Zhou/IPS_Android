@@ -244,12 +244,12 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        thirdLayout.addView(stateImageView);
+//        thirdLayout.addView(stateImageView);
         thirdLayout.addView(textView1);
         thirdLayout.addView(textView2);
 
-        secondLayout.addView(thirdLayout);
         secondLayout.addView(descImageView);
+        secondLayout.addView(thirdLayout);
 
 //        markerIdList.add(markerId);
         upperContentView.addView(secondLayout);
