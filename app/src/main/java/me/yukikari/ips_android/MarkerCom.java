@@ -154,7 +154,7 @@ public class MarkerCom extends Service {
         thread.start();
     }
 
-    // Method: Http Request
+    // Method: Http Request (Async)
     private void uploadData(String mac, int rssi) {
 
         JSONObject jsonIn = new JSONObject();

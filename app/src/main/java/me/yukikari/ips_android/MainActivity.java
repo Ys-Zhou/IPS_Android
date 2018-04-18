@@ -4,6 +4,7 @@ import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.graphics.Color;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
@@ -12,9 +13,8 @@ import android.os.Message;
 import android.provider.Settings;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
+import android.view.View;
 import android.widget.LinearLayout;
-import android.widget.TableLayout;
-import android.widget.TableRow;
 import android.widget.TextView;
 
 import org.json.JSONException;
@@ -156,7 +156,7 @@ public class MainActivity extends AppCompatActivity {
             super.handleMessage(msg);
             if (mainActivity != null) {
                 if (msg.what == 0) {
-                    mainActivity.popAlert(String.format(Locale.getDefault(), "Cannot upload data.(%d)", msg.arg1));
+                    //mainActivity.popAlert(String.format(Locale.getDefault(), "Cannot upload data.(%d)", msg.arg1));
                 }
             }
         }
@@ -169,27 +169,44 @@ public class MainActivity extends AppCompatActivity {
             upperContentView.removeViewAt(0);
         }
 
-        // Table
-        TableLayout table = new TableLayout(this);
-        TableLayout.LayoutParams tableParams = new TableLayout.LayoutParams(
-                TableLayout.LayoutParams.MATCH_PARENT, TableLayout.LayoutParams.MATCH_PARENT);
-        table.setLayoutParams(tableParams);
+        // First layout
+        LinearLayout first = new LinearLayout(this);
+        LinearLayout.LayoutParams firstParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        first.setOrientation(LinearLayout.VERTICAL);
+        first.setLayoutParams(firstParams);
 
-        // Rows
         for (HashMap.Entry<String, JSONObject> entry : mDevices.entrySet()) {
-            TableRow row = new TableRow(this);
-            // Cols
-            TextView col1 = new TextView(this);
-            col1.setText(entry.getKey());
-            TextView col2 = new TextView(this);
-            col2.setText(entry.getValue().getString("rssi"));
-            TextView col3 = new TextView(this);
-            col3.setText(entry.getValue().getString("lastUpdate"));
-            row.addView(col1);
-            row.addView(col2);
-            row.addView(col3);
-            table.addView(row);
+            // Second layout
+            LinearLayout second = new LinearLayout(this);
+            LinearLayout.LayoutParams secondParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            secondParams.setMargins(0, 0, 0, 24);
+            second.setBackgroundColor(Color.parseColor("#cccccc"));
+            second.setOrientation(LinearLayout.VERTICAL);
+            second.setLayoutParams(secondParams);
+
+            // texts
+            TextView text1 = new TextView(this);
+            text1.setText(String.format(Locale.getDefault(), "MAC: %s", entry.getKey()));
+            TextView text2 = new TextView(this);
+            text2.setText(String.format(Locale.getDefault(), "RSSI: %s", entry.getValue().getString("rssi")));
+            TextView text3 = new TextView(this);
+            text3.setText(String.format(Locale.getDefault(), "Time: %s", entry.getValue().getString("lastUpdate")));
+            second.addView(text1);
+            second.addView(text2);
+            second.addView(text3);
+
+            // onClick
+            second.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    // Jump
+                }
+            });
+
+            first.addView(second);
         }
-        upperContentView.addView(table);
+        upperContentView.addView(first);
     }
 }
