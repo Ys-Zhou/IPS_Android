@@ -8,12 +8,12 @@ import android.os.IBinder;
 import android.os.Message;
 
 import com.loopj.android.http.AsyncHttpClient;
-import com.loopj.android.http.AsyncHttpResponseHandler;
 import com.loopj.android.http.RequestParams;
-import com.loopj.android.http.SyncHttpClient;
+import com.loopj.android.http.TextHttpResponseHandler;
 
 import cz.msebera.android.httpclient.Header;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.text.SimpleDateFormat;
@@ -32,14 +32,10 @@ public class MarkerCom extends Service {
 
     // For thread safety, do not change these in any case
     private boolean exit = false;
-    private static ReentrantLock lock = new ReentrantLock();
+    private ReentrantLock lock = new ReentrantLock();
 
     // Bluetooth Adapter Instance
     private BluetoothAdapter mBluetoothAdapter;
-
-    // Device sets
-    private HashMap<String, JSONObject> mDevices = new HashMap<>(); //For updating UI
-    private HashMap<String, ArrayList<Integer>> deviceData = new HashMap<>(); //For calculating average RSSI
 
     @Override
     public void onCreate() {
@@ -65,6 +61,10 @@ public class MarkerCom extends Service {
     public IBinder onBind(Intent intent) {
         return null;
     }
+
+    // Device set
+    private HashMap<String, JSONObject> mDevices = new HashMap<>(); //For updating UI
+    private HashMap<String, ArrayList<Integer>> deviceData = new HashMap<>(); //For calculating average RSSI
 
     // Callback: Scan devices
     private BluetoothAdapter.LeScanCallback mLeScanCallback = new BluetoothAdapter.LeScanCallback() {
@@ -111,17 +111,16 @@ public class MarkerCom extends Service {
     private void addData(String mac, int rssi) {
 
         ArrayList<Integer> rssiList;
-
         if (deviceData.containsKey(mac)) {
             rssiList = deviceData.get(mac);
         } else {
             rssiList = new ArrayList<>();
         }
-
         rssiList.add(rssi);
         deviceData.put(mac, rssiList);
     }
 
+    // Method: Check device set and upload data (Async)
     private void startUpload() {
         Thread thread = new Thread(new Runnable() {
             @Override
@@ -145,15 +144,17 @@ public class MarkerCom extends Service {
                         }
                     }
                 } catch (InterruptedException e) {
-//                    Message msg = new Message();
-//                    msg.what = 0;
-//                    MainActivity.ctrlHandler.sendMessage(msg);
+                    Message msg = new Message();
+                    msg.what = 0;
+                    msg.arg1 = 0;
+                    MainActivity.ctrlHandler.sendMessage(msg);
                 }
             }
         });
         thread.start();
     }
 
+    // Method: Http Request
     private void uploadData(String mac, int rssi) {
 
         JSONObject jsonIn = new JSONObject();
@@ -166,22 +167,39 @@ public class MarkerCom extends Service {
             e.printStackTrace();
         }
 
-        SyncHttpClient client = new SyncHttpClient();
+        AsyncHttpClient client = new AsyncHttpClient();
         RequestParams params = new RequestParams();
         params.put("jsonIn", jsonIn.toString());
-        client.post(Info.ipAddr + "/IPS_Server/UploadData", params, new AsyncHttpResponseHandler() {
-
-            @Override
-            public void onSuccess(int statusCode, Header[] headers, byte[] response) {
-
-            }
-
-            @Override
-            public void onFailure(int statusCode, Header[] headers, byte[] response, Throwable error) {
-//                Message msg = new Message();
-//                msg.what = 0;
-//                MainActivity.ctrlHandler.sendMessage(msg);
-            }
-        });
+        client.post(Info.ipAddr + "/IPS_Server/UploadData", params, mTextHttpResponseHandler);
     }
+
+    // Handler: Http Response
+    private TextHttpResponseHandler mTextHttpResponseHandler = new TextHttpResponseHandler() {
+
+        @Override
+        public void onSuccess(int statusCode, Header[] headers, String response) {
+
+            Message msg = new Message();
+            try {
+                JSONObject jsonOut = new JSONObject(response);
+                int requestStat = jsonOut.getInt("addLogStmt");
+                if (requestStat == 0) {
+                    msg.what = 0;
+                    msg.arg1 = 1;
+                }
+            } catch (JSONException e) {
+                msg.what = 0;
+                msg.arg1 = 2;
+            }
+            MainActivity.ctrlHandler.sendMessage(msg);
+        }
+
+        @Override
+        public void onFailure(int statusCode, Header[] headers, String response, Throwable error) {
+            Message msg = new Message();
+            msg.what = 0;
+            msg.arg1 = 3;
+            MainActivity.ctrlHandler.sendMessage(msg);
+        }
+    };
 }

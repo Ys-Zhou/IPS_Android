@@ -6,22 +6,23 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.provider.Settings;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
 import android.widget.LinearLayout;
 import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
 
-import org.json.JSONObject;
 import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.lang.ref.WeakReference;
 import java.util.HashMap;
+import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
     static Handler viewHandler;
@@ -38,7 +39,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         viewHandler = new ViewHandler(this);
-        //ctrlHandler = new CtrlHandler(this);
+        ctrlHandler = new CtrlHandler(this);
         androidID = Settings.Secure.getString(getApplicationContext().getContentResolver(), Settings.Secure.ANDROID_ID);
         upperContentView = findViewById(R.id.viewfiled);
 
@@ -142,23 +143,24 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-//    private static class CtrlHandler extends Handler {
-//        private final WeakReference<MainActivity> weakReference;
-//
-//        CtrlHandler(MainActivity mainActivityInstance) {
-//            weakReference = new WeakReference<>(mainActivityInstance);
-//        }
-//
-//        @Override
-//        public void handleMessage(Message msg) {
-//            MainActivity mainActivity = weakReference.get();
-//            super.handleMessage(msg);
-//            if (mainActivity != null) {
-//
-//
-//            }
-//        }
-//    }
+    private static class CtrlHandler extends Handler {
+        private final WeakReference<MainActivity> weakReference;
+
+        CtrlHandler(MainActivity mainActivityInstance) {
+            weakReference = new WeakReference<>(mainActivityInstance);
+        }
+
+        @Override
+        public void handleMessage(Message msg) {
+            MainActivity mainActivity = weakReference.get();
+            super.handleMessage(msg);
+            if (mainActivity != null) {
+                if (msg.what == 0) {
+                    mainActivity.popAlert(String.format(Locale.getDefault(), "Cannot upload data.(%d)", msg.arg1));
+                }
+            }
+        }
+    }
 
     private void updateUI(HashMap<String, JSONObject> mDevices) throws JSONException {
         if (isFirst) {
