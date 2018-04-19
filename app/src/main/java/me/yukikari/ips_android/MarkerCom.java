@@ -4,6 +4,7 @@ import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
+import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 
@@ -16,6 +17,7 @@ import cz.msebera.android.httpclient.Header;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.lang.ref.WeakReference;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -27,19 +29,24 @@ public class MarkerCom extends Service {
 
     // Upload frequency (Unit: second)
     private int upFrq = 15;
-    // Data will not be upload if the length of array is less tha this
+    // Data will not be upload if the number of data is less than this
     private int lim = 3;
 
-    // For thread safety, do not change these in any case
+    // Thread sync
     private boolean exit = false;
     private ReentrantLock lock = new ReentrantLock();
 
     // Bluetooth Adapter Instance
     private BluetoothAdapter mBluetoothAdapter;
 
+    // Handler: DirHandler
+    static Handler dirHandler;
+    int dir = 1;
+
     @Override
     public void onCreate() {
         super.onCreate();
+        dirHandler = new DirHandler(this);
     }
 
     @Override
@@ -82,7 +89,9 @@ public class MarkerCom extends Service {
 
             //update device status
             //For updating UI
-            mDevices.put(device.getAddress(), json);
+            if (dir == 1) {
+                mDevices.put(device.getAddress(), json);
+            }
 
             //For calculating average RSSI
             lock.lock();
@@ -136,7 +145,7 @@ public class MarkerCom extends Service {
                                     for (int rssi : entry.getValue()) {
                                         sumRssi += rssi;
                                     }
-                                    uploadData(entry.getKey(), sumRssi / entry.getValue().size());
+                                    //uploadData(entry.getKey(), sumRssi / entry.getValue().size());
                                 }
                             }
                         } finally {
@@ -202,4 +211,22 @@ public class MarkerCom extends Service {
             MainActivity.ctrlHandler.sendMessage(msg);
         }
     };
+
+    // Handler: Message sending direction
+    private static class DirHandler extends Handler {
+        private final WeakReference<MarkerCom> weakReference;
+
+        DirHandler(MarkerCom markerComInstance) {
+            weakReference = new WeakReference<>(markerComInstance);
+        }
+
+        @Override
+        public void handleMessage(Message msg) {
+            MarkerCom markerCom = weakReference.get();
+            super.handleMessage(msg);
+            if (markerCom != null) {
+                markerCom.dir = msg.arg1;
+            }
+        }
+    }
 }

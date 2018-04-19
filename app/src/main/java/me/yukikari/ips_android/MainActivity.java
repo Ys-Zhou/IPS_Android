@@ -13,6 +13,7 @@ import android.os.Message;
 import android.provider.Settings;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -32,12 +33,18 @@ public class MainActivity extends AppCompatActivity {
     // Variables in updating UI
     private LinearLayout upperContentView;
     private boolean isFirst = true;
+    private boolean nowRunning = false;
+    private boolean noErr = true;
+
+    // Other Activities or Services intent
+    private Intent markerInt;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // Initialization
         viewHandler = new ViewHandler(this);
         ctrlHandler = new CtrlHandler(this);
         androidID = Settings.Secure.getString(getApplicationContext().getContentResolver(), Settings.Secure.ANDROID_ID);
@@ -58,7 +65,7 @@ public class MainActivity extends AppCompatActivity {
 
         //Wait Bluetooth adapter ready
         int times = 0;
-        while (!adapter.isEnabled() && times < 10) {
+        while (!adapter.isEnabled() && times < 20) {
             try {
                 Thread.sleep(500);
                 times++;
@@ -71,15 +78,36 @@ public class MainActivity extends AppCompatActivity {
         }
 
         // Start MarkerCom as a service
-        Intent intent = new Intent(this, MarkerCom.class);
-        startService(intent);
+        markerInt = new Intent(this, MarkerCom.class);
+        startService(markerInt);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (MarkerCom.dirHandler != null) {
+            Message msg = new Message();
+            msg.arg1 = 1;
+            MarkerCom.dirHandler.sendMessage(msg);
+        }
+        nowRunning = true;
+    }
+
+    @Override
+    protected void onPause() {
+        nowRunning = false;
+        if (MarkerCom.dirHandler != null) {
+            Message msg = new Message();
+            msg.arg1 = 0;
+            MarkerCom.dirHandler.sendMessage(msg);
+        }
+        super.onPause();
     }
 
     @Override
     protected void onDestroy() {
         // Stop MarkerCom
-        Intent intent = new Intent(this, MarkerCom.class);
-        stopService(intent);
+        stopService(markerInt);
         super.onDestroy();
     }
 
@@ -110,7 +138,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void popAlert(String text) {
+        // Stop handle messages
+        noErr = false;
+        // Pop dialog
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setCancelable(false);
         builder.setTitle("Alert!");
         builder.setMessage(text);
         builder.setNegativeButton("OK", new DialogInterface.OnClickListener() {
@@ -133,11 +165,13 @@ public class MainActivity extends AppCompatActivity {
             MainActivity mainActivity = weakReference.get();
             super.handleMessage(msg);
             if (mainActivity != null) {
-                HashMap<String, JSONObject> mDevices = (HashMap<String, JSONObject>) msg.obj;
-                try {
-                    mainActivity.updateUI(mDevices);
-                } catch (Exception e) {
-                    mainActivity.popAlert("Cannot update UI.");
+                if (mainActivity.nowRunning && mainActivity.noErr) {
+                    try {
+                        HashMap<String, JSONObject> mDevices = (HashMap<String, JSONObject>) msg.obj;
+                        mainActivity.updateUI(mDevices);
+                    } catch (Exception e) {
+                        mainActivity.popAlert("Cannot update UI.");
+                    }
                 }
             }
         }
@@ -155,8 +189,10 @@ public class MainActivity extends AppCompatActivity {
             MainActivity mainActivity = weakReference.get();
             super.handleMessage(msg);
             if (mainActivity != null) {
-                if (msg.what == 0) {
-                    //mainActivity.popAlert(String.format(Locale.getDefault(), "Cannot upload data.(%d)", msg.arg1));
+                if (mainActivity.nowRunning && mainActivity.noErr) {
+                    if (msg.what == 0) {
+                        mainActivity.popAlert(String.format(Locale.getDefault(), "Cannot upload data.(%d)", msg.arg1));
+                    }
                 }
             }
         }
