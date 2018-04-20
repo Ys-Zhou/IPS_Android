@@ -22,7 +22,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.lang.ref.WeakReference;
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
@@ -32,7 +32,7 @@ public class MainActivity extends AppCompatActivity {
 
     // Variables in updating UI
     private LinearLayout upperContentView;
-    private boolean isFirst = true;
+    private ArrayList<String> createdMac;
     private boolean nowRunning = false;
     private boolean noErr = true;
 
@@ -49,6 +49,7 @@ public class MainActivity extends AppCompatActivity {
         ctrlHandler = new CtrlHandler(this);
         androidID = Settings.Secure.getString(getApplicationContext().getContentResolver(), Settings.Secure.ANDROID_ID);
         upperContentView = findViewById(R.id.viewfiled);
+        createdMac = new ArrayList<>();
 
         //Open Bluetooth adapter
         BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
@@ -59,9 +60,9 @@ public class MainActivity extends AppCompatActivity {
         }
 
         //Check connection to Internet
-        if (!isWiFi() && !isMobile()) {
-            popAlert("Cannot connect to Internet.");
-        }
+//        if (!isWiFi() && !isMobile()) {
+//            popAlert("Cannot connect to Internet.");
+//        }
 
         //Wait Bluetooth adapter ready
         int times = 0;
@@ -78,8 +79,10 @@ public class MainActivity extends AppCompatActivity {
         }
 
         // Start MarkerCom as a service
-        markerInt = new Intent(this, MarkerCom.class);
-        startService(markerInt);
+        if (noErr) {
+            markerInt = new Intent(this, MarkerCom.class);
+            startService(markerInt);
+        }
     }
 
     @Override
@@ -138,7 +141,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void popAlert(String text) {
-        // Stop handle messages
+        // Stop handle messages and Bluetooth service
         noErr = false;
         // Pop dialog
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -167,8 +170,8 @@ public class MainActivity extends AppCompatActivity {
             if (mainActivity != null) {
                 if (mainActivity.nowRunning && mainActivity.noErr) {
                     try {
-                        HashMap<String, JSONObject> mDevices = (HashMap<String, JSONObject>) msg.obj;
-                        mainActivity.updateUI(mDevices);
+                        JSONObject deviceInfo = (JSONObject) msg.obj;
+                        mainActivity.updateUI(deviceInfo);
                     } catch (Exception e) {
                         mainActivity.popAlert("Cannot update UI.");
                     }
@@ -198,21 +201,15 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void updateUI(HashMap<String, JSONObject> mDevices) throws JSONException {
-        if (isFirst) {
-            isFirst = false;
-        } else {
-            upperContentView.removeViewAt(0);
-        }
+    private void updateUI(JSONObject deviceInfo) throws JSONException {
+        // Get info
+        final String mac = deviceInfo.getString("mac");
+        String rssi = deviceInfo.getString("rssi");
+        String lastUpdate = deviceInfo.getString("lastUpdate");
 
-        // First layout
-        LinearLayout first = new LinearLayout(this);
-        LinearLayout.LayoutParams firstParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        first.setOrientation(LinearLayout.VERTICAL);
-        first.setLayoutParams(firstParams);
-
-        for (HashMap.Entry<String, JSONObject> entry : mDevices.entrySet()) {
+        int viewIndex = createdMac.indexOf(mac);
+        if (viewIndex == -1) {
+            // Create
             // Second layout
             LinearLayout second = new LinearLayout(this);
             LinearLayout.LayoutParams secondParams = new LinearLayout.LayoutParams(
@@ -222,13 +219,13 @@ public class MainActivity extends AppCompatActivity {
             second.setOrientation(LinearLayout.VERTICAL);
             second.setLayoutParams(secondParams);
 
-            // texts
+            // Texts
             TextView text1 = new TextView(this);
-            text1.setText(String.format(Locale.getDefault(), "MAC: %s", entry.getKey()));
+            text1.setText(String.format(Locale.getDefault(), "MAC: %s", mac));
             TextView text2 = new TextView(this);
-            text2.setText(String.format(Locale.getDefault(), "RSSI: %s", entry.getValue().getString("rssi")));
+            text2.setText(String.format(Locale.getDefault(), "RSSI: %s", rssi));
             TextView text3 = new TextView(this);
-            text3.setText(String.format(Locale.getDefault(), "Time: %s", entry.getValue().getString("lastUpdate")));
+            text3.setText(String.format(Locale.getDefault(), "Time: %s", lastUpdate));
             second.addView(text1);
             second.addView(text2);
             second.addView(text3);
@@ -237,12 +234,21 @@ public class MainActivity extends AppCompatActivity {
             second.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
-                    // Jump
+                    Intent jumpToDetail = new Intent(MainActivity.this, DetailActivity.class);
+                    jumpToDetail.putExtra("MAC", mac);
+                    startActivity(jumpToDetail);
                 }
             });
 
-            first.addView(second);
+            createdMac.add(mac);
+            upperContentView.addView(second);
+        } else {
+            // Update
+            LinearLayout second = (LinearLayout) upperContentView.getChildAt(viewIndex);
+            TextView text2 = (TextView) second.getChildAt(1);
+            text2.setText(String.format(Locale.getDefault(), "RSSI: %s", rssi));
+            TextView text3 = (TextView) second.getChildAt(2);
+            text3.setText(String.format(Locale.getDefault(), "Time: %s", lastUpdate));
         }
-        upperContentView.addView(first);
     }
 }

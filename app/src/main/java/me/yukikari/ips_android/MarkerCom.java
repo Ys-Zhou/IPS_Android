@@ -26,7 +26,6 @@ import java.util.Locale;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class MarkerCom extends Service {
-
     // Upload frequency (Unit: second)
     private int upFrq = 15;
     // Data will not be upload if the number of data is less than this
@@ -42,6 +41,7 @@ public class MarkerCom extends Service {
     // Handler: DirHandler
     static Handler dirHandler;
     int dir = 1;
+    String filter;
 
     @Override
     public void onCreate() {
@@ -70,8 +70,7 @@ public class MarkerCom extends Service {
     }
 
     // Device set
-    private HashMap<String, JSONObject> mDevices = new HashMap<>(); //For updating UI
-    private HashMap<String, ArrayList<Integer>> deviceData = new HashMap<>(); //For calculating average RSSI
+    private HashMap<String, ArrayList<Integer>> deviceData = new HashMap<>();
 
     // Callback: Scan devices
     private BluetoothAdapter.LeScanCallback mLeScanCallback = new BluetoothAdapter.LeScanCallback() {
@@ -79,18 +78,13 @@ public class MarkerCom extends Service {
         @Override
         public void onLeScan(final BluetoothDevice device, int rssi, byte[] scanRecord) {
 
-            JSONObject json = new JSONObject();
-            try {
-                json.put("rssi", rssi);
-                json.put("lastUpdate", getCurTime());
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
-            //update device status
             //For updating UI
             if (dir == 1) {
-                mDevices.put(device.getAddress(), json);
+                upDateUI(device.getAddress(), rssi);
+            } else if (dir == 2) {
+                if (filter.equals(device.getAddress())) {
+                    upDateUI(device.getAddress(), rssi);
+                }
             }
 
             //For calculating average RSSI
@@ -100,25 +94,36 @@ public class MarkerCom extends Service {
             } finally {
                 lock.unlock();
             }
-
-            //Send message to update UI
-            Message msg = new Message();
-            msg.obj = mDevices;
-            MainActivity.viewHandler.sendMessage(msg);
         }
     };
 
     // Method: Get current time
     private String getCurTime() {
-
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
         Date curDate = new Date(System.currentTimeMillis());
         return formatter.format(curDate);
     }
 
+    // Method: Send message to update UI
+    private void upDateUI(String mac, int rssi) {
+        JSONObject deviceInfo = new JSONObject();
+        try {
+            deviceInfo.put("mac", mac);
+            deviceInfo.put("rssi", rssi);
+            deviceInfo.put("lastUpdate", getCurTime());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        Message msg = new Message();
+        msg.obj = deviceInfo;
+        if (dir == 1) {
+            MainActivity.viewHandler.sendMessage(msg);
+        }
+    }
+
     // Method: Add data to device set
     private void addData(String mac, int rssi) {
-
         ArrayList<Integer> rssiList;
         if (deviceData.containsKey(mac)) {
             rssiList = deviceData.get(mac);
@@ -226,6 +231,7 @@ public class MarkerCom extends Service {
             super.handleMessage(msg);
             if (markerCom != null) {
                 markerCom.dir = msg.arg1;
+                markerCom.filter = (String) msg.obj;
             }
         }
     }
