@@ -26,9 +26,9 @@ import java.util.ArrayList;
 import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
+    static String androidID;
     static Handler viewHandler;
     static Handler ctrlHandler;
-    static String androidID;
 
     // Variables in updating UI
     private LinearLayout upperContentView;
@@ -36,7 +36,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean nowRunning = false;
     private boolean noErr = true;
 
-    // Other Activities or Services intent
+    // Other intents
     private Intent markerInt;
 
     @Override
@@ -44,10 +44,14 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Initialization
+        // ID
+        androidID = Settings.Secure.getString(getApplicationContext().getContentResolver(), Settings.Secure.ANDROID_ID);
+
+        // Handlers
         viewHandler = new ViewHandler(this);
         ctrlHandler = new CtrlHandler(this);
-        androidID = Settings.Secure.getString(getApplicationContext().getContentResolver(), Settings.Secure.ANDROID_ID);
+
+        // UI
         upperContentView = findViewById(R.id.viewfiled);
         createdMac = new ArrayList<>();
 
@@ -60,9 +64,9 @@ public class MainActivity extends AppCompatActivity {
         }
 
         //Check connection to Internet
-//        if (!isWiFi() && !isMobile()) {
-//            popAlert("Cannot connect to Internet.");
-//        }
+        if (!isWiFi() && !isMobile()) {
+            popAlert("Cannot connect to Internet.");
+        }
 
         //Wait Bluetooth adapter ready
         int times = 0;
@@ -172,7 +176,7 @@ public class MainActivity extends AppCompatActivity {
                     try {
                         JSONObject deviceInfo = (JSONObject) msg.obj;
                         mainActivity.updateUI(deviceInfo);
-                    } catch (Exception e) {
+                    } catch (JSONException e) {
                         mainActivity.popAlert("Cannot update UI.");
                     }
                 }

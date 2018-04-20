@@ -40,8 +40,8 @@ public class MarkerCom extends Service {
 
     // Handler: DirHandler
     static Handler dirHandler;
-    int dir = 1;
-    String filter;
+    private int dir = 1;
+    private String filter;
 
     @Override
     public void onCreate() {
@@ -80,10 +80,12 @@ public class MarkerCom extends Service {
 
             //For updating UI
             if (dir == 1) {
-                upDateUI(device.getAddress(), rssi);
+                sendInfo(device.getAddress(), rssi);
             } else if (dir == 2) {
                 if (filter.equals(device.getAddress())) {
-                    upDateUI(device.getAddress(), rssi);
+                    Message msg = new Message();
+                    msg.arg1 = rssi;
+                    DetailActivity.viewHandler.sendMessage(msg);
                 }
             }
 
@@ -105,21 +107,19 @@ public class MarkerCom extends Service {
     }
 
     // Method: Send message to update UI
-    private void upDateUI(String mac, int rssi) {
+    private void sendInfo(String mac, int rssi) {
         JSONObject deviceInfo = new JSONObject();
         try {
             deviceInfo.put("mac", mac);
             deviceInfo.put("rssi", rssi);
             deviceInfo.put("lastUpdate", getCurTime());
-        } catch (Exception e) {
+        } catch (JSONException e) {
             e.printStackTrace();
         }
 
         Message msg = new Message();
         msg.obj = deviceInfo;
-        if (dir == 1) {
-            MainActivity.viewHandler.sendMessage(msg);
-        }
+        MainActivity.viewHandler.sendMessage(msg);
     }
 
     // Method: Add data to device set
@@ -177,7 +177,7 @@ public class MarkerCom extends Service {
             jsonIn.put("markerMac", mac);
             jsonIn.put("date", getCurTime());
             jsonIn.put("rssi", rssi);
-        } catch (Exception e) {
+        } catch (JSONException e) {
             e.printStackTrace();
         }
 
@@ -202,8 +202,7 @@ public class MarkerCom extends Service {
                     msg.arg1 = 1;
                 }
             } catch (JSONException e) {
-                msg.what = 0;
-                msg.arg1 = 2;
+                e.printStackTrace();
             }
             MainActivity.ctrlHandler.sendMessage(msg);
         }
@@ -212,7 +211,7 @@ public class MarkerCom extends Service {
         public void onFailure(int statusCode, Header[] headers, String response, Throwable error) {
             Message msg = new Message();
             msg.what = 0;
-            msg.arg1 = 3;
+            msg.arg1 = 2;
             MainActivity.ctrlHandler.sendMessage(msg);
         }
     };
