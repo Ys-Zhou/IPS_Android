@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">Fukuoka City Science Museum</string>
     <string name="def_text">Null</string>
+    <string name="zero">0</string>
     <string name="mac_label">MAC:</string>
     <string name="min_label">Min Rssi:</string>
     <string name="max_label">Max Rssi:</string>
