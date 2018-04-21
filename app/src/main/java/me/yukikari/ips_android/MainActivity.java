@@ -16,8 +16,14 @@ import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
+import com.loopj.android.http.AsyncHttpClient;
+import com.loopj.android.http.RequestParams;
+import com.loopj.android.http.TextHttpResponseHandler;
+
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -25,18 +31,22 @@ import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Locale;
 
+import cz.msebera.android.httpclient.Header;
+
 public class MainActivity extends AppCompatActivity {
     static String androidID;
+    private static Handler iniHandler;
     static Handler viewHandler;
     static Handler ctrlHandler;
+    static ArrayList<String> macList;
 
     // Variables in updating UI
     private LinearLayout upperContentView;
     private ArrayList<String> createdMac;
     private boolean nowRunning = false;
-    private boolean noErr = true;
+    private boolean noErr = false;
 
-    // Other intents
+    // Service intent
     private Intent markerInt;
 
     @Override
@@ -48,6 +58,7 @@ public class MainActivity extends AppCompatActivity {
         androidID = Settings.Secure.getString(getApplicationContext().getContentResolver(), Settings.Secure.ANDROID_ID);
 
         // Handlers
+        iniHandler = new IniHandler(this);
         viewHandler = new ViewHandler(this);
         ctrlHandler = new CtrlHandler(this);
 
@@ -55,38 +66,14 @@ public class MainActivity extends AppCompatActivity {
         upperContentView = findViewById(R.id.viewfiled);
         createdMac = new ArrayList<>();
 
-        //Open Bluetooth adapter
-        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
-        if (adapter == null) {
-            popAlert("Cannot use Bluetooth service.");
-        } else if (!adapter.isEnabled()) {
-            adapter.enable();
-        }
+        //Service
+        markerInt = new Intent(this, MarkerCom.class);
+        macList = new ArrayList<>();
 
-        //Check connection to Internet
-        if (!isWiFi() && !isMobile()) {
-            popAlert("Cannot connect to Internet.");
-        }
-
-        //Wait Bluetooth adapter ready
-        int times = 0;
-        while (!adapter.isEnabled() && times < 20) {
-            try {
-                Thread.sleep(500);
-                times++;
-            } catch (InterruptedException e) {
-                popAlert("Cannot use Bluetooth service.(0)");
-            }
-        }
-        if (!adapter.isEnabled()) {
-            popAlert("Cannot use Bluetooth service.(1)");
-        }
-
-        // Start MarkerCom as a service
-        if (noErr) {
-            markerInt = new Intent(this, MarkerCom.class);
-            startService(markerInt);
-        }
+        // First step of initialization
+        ProgressBar pb = new ProgressBar(this);
+        upperContentView.addView(pb);
+        checkInternet();
     }
 
     @Override
@@ -118,7 +105,73 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
     }
 
-    //Check WiFi method
+    private void popAlert(String text) {
+        // Stop handle messages
+        noErr = false;
+        // Pop dialog
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setCancelable(false);
+        builder.setMessage(text);
+        builder.setNegativeButton("OK", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int id) {
+                MainActivity.this.finish();
+            }
+        });
+        builder.show();
+    }
+
+    // Handle initialization messages
+    private static class IniHandler extends Handler {
+        private final WeakReference<MainActivity> weakReference;
+
+        IniHandler(MainActivity mainActivityInstance) {
+            weakReference = new WeakReference<>(mainActivityInstance);
+        }
+
+        @Override
+        public void handleMessage(Message msg) {
+            MainActivity mainActivity = weakReference.get();
+            super.handleMessage(msg);
+            if (mainActivity != null) {
+                switch (msg.what) {
+                    case 1:
+                        if (msg.arg1 == 0) {
+                            mainActivity.popAlert("Cannot connect to Internet.");
+                        } else if (msg.arg1 == 1) {
+                            mainActivity.checkBluetooth();
+                        }
+                        break;
+                    case 2:
+                        if (msg.arg1 == 0) {
+                            mainActivity.popAlert("Cannot open Bluetooth adapter.");
+                        } else if (msg.arg1 == 1) {
+                            mainActivity.getMacList();
+                        }
+                        break;
+                }
+            }
+        }
+    }
+
+    // Ini step 1: Check Internet
+    private void checkInternet() {
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                Message msg = new Message();
+                msg.what = 1;
+                if (isWiFi() || isMobile()) {
+                    msg.arg1 = 1;
+                } else {
+                    msg.arg1 = 0;
+                }
+                MainActivity.iniHandler.sendMessage(msg);
+            }
+        });
+        thread.start();
+    }
+
+    // Ini step 1.1: Check WiFi
     private boolean isWiFi() {
         ConnectivityManager connectivityManager = (ConnectivityManager) this
                 .getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -131,7 +184,7 @@ public class MainActivity extends AppCompatActivity {
         return networkInfo != null && networkInfo.getType() == ConnectivityManager.TYPE_WIFI;
     }
 
-    //Check 4G method
+    // Ini step 1.2: Check 4G
     private boolean isMobile() {
         ConnectivityManager connectivityManager = (ConnectivityManager) this
                 .getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -144,22 +197,80 @@ public class MainActivity extends AppCompatActivity {
         return networkInfo != null && networkInfo.getType() == ConnectivityManager.TYPE_MOBILE;
     }
 
-    private void popAlert(String text) {
-        // Stop handle messages and Bluetooth service
-        noErr = false;
-        // Pop dialog
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setCancelable(false);
-        builder.setTitle("Alert!");
-        builder.setMessage(text);
-        builder.setNegativeButton("OK", new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int id) {
-                MainActivity.this.finish();
+    // Ini step 2: Check Bluetooth
+    private void checkBluetooth() {
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                Message msg = new Message();
+                msg.what = 2;
+                if (openBluetooth()) {
+                    msg.arg1 = 1;
+                } else {
+                    msg.arg1 = 0;
+                }
+                MainActivity.iniHandler.sendMessage(msg);
             }
         });
-        builder.show();
+        thread.start();
     }
 
+    // Ini step 2.1: Check & open Bluetooth
+    private boolean openBluetooth() {
+        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+        if (adapter == null) {
+            return false;
+        }
+        if (!adapter.isEnabled()) {
+            adapter.enable();
+        }
+        int times = 0;
+        while (!adapter.isEnabled() && times < 20) {
+            try {
+                Thread.sleep(500);
+                times++;
+            } catch (InterruptedException e) {
+                break;
+            }
+        }
+        return adapter.isEnabled();
+    }
+
+    // Ini step 3: Get beacon MAC list
+    private void getMacList() {
+
+        AsyncHttpClient client = new AsyncHttpClient();
+        RequestParams params = new RequestParams();
+        client.post(Info.ipAddr + "/IPS_Server/GetMacList", params, mTextHttpResponseHandler);
+    }
+
+    // Ini step 3.1: Handle Http Response
+    private TextHttpResponseHandler mTextHttpResponseHandler = new TextHttpResponseHandler() {
+
+        @Override
+        public void onSuccess(int statusCode, Header[] headers, String response) {
+            try {
+                JSONArray macArray = new JSONArray(response);
+                for (int i = 0; i < macArray.length(); i++) {
+                    macList.add(macArray.getString(i));
+                }
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+
+            // Ini step 4: Start service
+            upperContentView.removeViewAt(0);
+            noErr = true;
+            startService(markerInt);
+        }
+
+        @Override
+        public void onFailure(int statusCode, Header[] headers, String response, Throwable error) {
+            popAlert("Cannot get beacon list.");
+        }
+    };
+
+    // Handle UI update messages
     private static class ViewHandler extends Handler {
         private final WeakReference<MainActivity> weakReference;
 
@@ -184,27 +295,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private static class CtrlHandler extends Handler {
-        private final WeakReference<MainActivity> weakReference;
-
-        CtrlHandler(MainActivity mainActivityInstance) {
-            weakReference = new WeakReference<>(mainActivityInstance);
-        }
-
-        @Override
-        public void handleMessage(Message msg) {
-            MainActivity mainActivity = weakReference.get();
-            super.handleMessage(msg);
-            if (mainActivity != null) {
-                if (mainActivity.nowRunning && mainActivity.noErr) {
-                    if (msg.what == 0) {
-                        mainActivity.popAlert(String.format(Locale.getDefault(), "Cannot upload data.(%d)", msg.arg1));
-                    }
-                }
-            }
-        }
-    }
-
     private void updateUI(JSONObject deviceInfo) throws JSONException {
         // Get info
         final String mac = deviceInfo.getString("mac");
@@ -213,7 +303,6 @@ public class MainActivity extends AppCompatActivity {
 
         int viewIndex = createdMac.indexOf(mac);
         if (viewIndex == -1) {
-            // Create
             // Second layout
             LinearLayout second = new LinearLayout(this);
             LinearLayout.LayoutParams secondParams = new LinearLayout.LayoutParams(
@@ -253,6 +342,28 @@ public class MainActivity extends AppCompatActivity {
             text2.setText(String.format(Locale.getDefault(), "RSSI: %s", rssi));
             TextView text3 = (TextView) second.getChildAt(2);
             text3.setText(String.format(Locale.getDefault(), "Time: %s", lastUpdate));
+        }
+    }
+
+    // Handle error messages
+    private static class CtrlHandler extends Handler {
+        private final WeakReference<MainActivity> weakReference;
+
+        CtrlHandler(MainActivity mainActivityInstance) {
+            weakReference = new WeakReference<>(mainActivityInstance);
+        }
+
+        @Override
+        public void handleMessage(Message msg) {
+            MainActivity mainActivity = weakReference.get();
+            super.handleMessage(msg);
+            if (mainActivity != null) {
+                if (mainActivity.nowRunning && mainActivity.noErr) {
+                    if (msg.what == 0) {
+                        mainActivity.popAlert(String.format(Locale.getDefault(), "Cannot upload data.(%d)", msg.arg1));
+                    }
+                }
+            }
         }
     }
 }

@@ -33,7 +33,7 @@ public class MarkerCom extends Service {
 
     // Thread sync
     private boolean exit = false;
-    private ReentrantLock lock = new ReentrantLock();
+    private ReentrantLock lock;
 
     // Bluetooth Adapter Instance
     private BluetoothAdapter mBluetoothAdapter;
@@ -47,6 +47,7 @@ public class MarkerCom extends Service {
     public void onCreate() {
         super.onCreate();
         dirHandler = new DirHandler(this);
+        lock = new ReentrantLock();
     }
 
     @Override
