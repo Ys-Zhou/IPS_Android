@@ -34,7 +34,7 @@ public class DetailActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_detail);
 
-        // ini
+        // Ini
         viewHandler = new ViewHandler(this);
 
         minText = findViewById(R.id.minText);

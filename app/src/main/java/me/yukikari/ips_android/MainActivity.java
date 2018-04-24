@@ -1,5 +1,6 @@
 package me.yukikari.ips_android;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -13,7 +14,6 @@ import android.os.Message;
 import android.provider.Settings;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
@@ -50,6 +50,7 @@ public class MainActivity extends AppCompatActivity {
     private Intent markerInt;
 
     @Override
+    @SuppressLint("HardwareIds")
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
@@ -120,84 +121,28 @@ public class MainActivity extends AppCompatActivity {
         builder.show();
     }
 
-    // Handle initialization messages
-    private static class IniHandler extends Handler {
-        private final WeakReference<MainActivity> weakReference;
-
-        IniHandler(MainActivity mainActivityInstance) {
-            weakReference = new WeakReference<>(mainActivityInstance);
-        }
-
-        @Override
-        public void handleMessage(Message msg) {
-            MainActivity mainActivity = weakReference.get();
-            super.handleMessage(msg);
-            if (mainActivity != null) {
-                switch (msg.what) {
-                    case 1:
-                        if (msg.arg1 == 0) {
-                            mainActivity.popAlert("Cannot connect to Internet.");
-                        } else if (msg.arg1 == 1) {
-                            mainActivity.checkBluetooth();
-                        }
-                        break;
-                    case 2:
-                        if (msg.arg1 == 0) {
-                            mainActivity.popAlert("Cannot open Bluetooth adapter.");
-                        } else if (msg.arg1 == 1) {
-                            mainActivity.getMacList();
-                        }
-                        break;
-                }
-            }
-        }
-    }
-
     // Ini step 1: Check Internet
     private void checkInternet() {
-        Thread thread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                Message msg = new Message();
-                msg.what = 1;
-                if (isWiFi() || isMobile()) {
-                    msg.arg1 = 1;
-                } else {
-                    msg.arg1 = 0;
-                }
-                MainActivity.iniHandler.sendMessage(msg);
-            }
-        });
-        thread.start();
+        if (hasInternet()) {
+            checkBluetooth();
+        } else {
+            popAlert("Cannot connect to Internet.");
+        }
     }
 
-    // Ini step 1.1: Check WiFi
-    private boolean isWiFi() {
+    // Ini step 1.1: Check Internet method
+    private boolean hasInternet() {
         ConnectivityManager connectivityManager = (ConnectivityManager) this
                 .getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo networkInfo;
-        try {
-            networkInfo = connectivityManager.getActiveNetworkInfo();
-        } catch (Exception e) {
+        if (connectivityManager == null) {
             return false;
         }
-        return networkInfo != null && networkInfo.getType() == ConnectivityManager.TYPE_WIFI;
+        NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
+        return networkInfo != null && (networkInfo.getType() == ConnectivityManager.TYPE_WIFI
+                || networkInfo.getType() == ConnectivityManager.TYPE_MOBILE);
     }
 
-    // Ini step 1.2: Check 4G
-    private boolean isMobile() {
-        ConnectivityManager connectivityManager = (ConnectivityManager) this
-                .getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo networkInfo;
-        try {
-            networkInfo = connectivityManager.getActiveNetworkInfo();
-        } catch (Exception e) {
-            return false;
-        }
-        return networkInfo != null && networkInfo.getType() == ConnectivityManager.TYPE_MOBILE;
-    }
-
-    // Ini step 2: Check Bluetooth
+    // Ini step 2: Check Bluetooth (in new thread)
     private void checkBluetooth() {
         Thread thread = new Thread(new Runnable() {
             @Override
@@ -215,7 +160,7 @@ public class MainActivity extends AppCompatActivity {
         thread.start();
     }
 
-    // Ini step 2.1: Check & open Bluetooth
+    // Ini step 2.1: Check & open Bluetooth method
     private boolean openBluetooth() {
         BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
         if (adapter == null) {
@@ -225,7 +170,7 @@ public class MainActivity extends AppCompatActivity {
             adapter.enable();
         }
         int times = 0;
-        while (!adapter.isEnabled() && times < 20) {
+        while (!adapter.isEnabled() && times < 10) {
             try {
                 Thread.sleep(500);
                 times++;
@@ -234,6 +179,32 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         return adapter.isEnabled();
+    }
+
+    // Handle thread message
+    private static class IniHandler extends Handler {
+        private final WeakReference<MainActivity> weakReference;
+
+        IniHandler(MainActivity mainActivityInstance) {
+            weakReference = new WeakReference<>(mainActivityInstance);
+        }
+
+        @Override
+        public void handleMessage(Message msg) {
+            MainActivity mainActivity = weakReference.get();
+            super.handleMessage(msg);
+            if (mainActivity != null) {
+                switch (msg.what) {
+                    case 2:
+                        if (msg.arg1 == 0) {
+                            mainActivity.popAlert("Cannot open Bluetooth adapter.");
+                        } else if (msg.arg1 == 1) {
+                            mainActivity.getMacList();
+                        }
+                        break;
+                }
+            }
+        }
     }
 
     // Ini step 3: Get beacon MAC list
@@ -288,7 +259,7 @@ public class MainActivity extends AppCompatActivity {
                         JSONObject deviceInfo = (JSONObject) msg.obj;
                         mainActivity.updateUI(deviceInfo);
                     } catch (JSONException e) {
-                        mainActivity.popAlert("Cannot update UI.");
+                        e.printStackTrace();
                     }
                 }
             }

@@ -79,21 +79,20 @@ public class MarkerCom extends Service {
         @Override
         public void onLeScan(final BluetoothDevice device, int rssi, byte[] scanRecord) {
 
+            String mac = device.getAddress();
             //For updating UI
-            if (dir == 1) {
-                sendInfo(device.getAddress(), rssi);
-            } else if (dir == 2) {
-                if (filter.equals(device.getAddress())) {
-                    Message msg = new Message();
-                    msg.arg1 = rssi;
-                    DetailActivity.viewHandler.sendMessage(msg);
-                }
+            if (dir == 1 && MainActivity.macList.contains(mac)) {
+                sendInfo(mac, rssi);
+            } else if (dir == 2 && filter.equals(mac)) {
+                Message msg = new Message();
+                msg.arg1 = rssi;
+                DetailActivity.viewHandler.sendMessage(msg);
             }
 
             //For calculating average RSSI
             lock.lock();
             try {
-                addData(device.getAddress(), rssi);
+                addData(mac, rssi);
             } finally {
                 lock.unlock();
             }
@@ -151,7 +150,7 @@ public class MarkerCom extends Service {
                                     for (int rssi : entry.getValue()) {
                                         sumRssi += rssi;
                                     }
-                                    //uploadData(entry.getKey(), sumRssi / entry.getValue().size());
+                                    uploadData(entry.getKey(), sumRssi / entry.getValue().size());
                                 }
                             }
                         } finally {
@@ -200,7 +199,7 @@ public class MarkerCom extends Service {
                 int requestStat = jsonOut.getInt("addLogStmt");
                 if (requestStat == 0) {
                     msg.what = 0;
-                    msg.arg1 = 1;
+                    msg.arg1 = statusCode;
                 }
             } catch (JSONException e) {
                 e.printStackTrace();
@@ -212,7 +211,7 @@ public class MarkerCom extends Service {
         public void onFailure(int statusCode, Header[] headers, String response, Throwable error) {
             Message msg = new Message();
             msg.what = 0;
-            msg.arg1 = 2;
+            msg.arg1 = statusCode;
             MainActivity.ctrlHandler.sendMessage(msg);
         }
     };
