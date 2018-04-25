@@ -14,10 +14,15 @@ import android.os.Message;
 import android.provider.Settings;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
+import android.view.Gravity;
 import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.loopj.android.http.AsyncHttpClient;
 import com.loopj.android.http.RequestParams;
@@ -34,17 +39,24 @@ import java.util.Locale;
 import cz.msebera.android.httpclient.Header;
 
 public class MainActivity extends AppCompatActivity {
-    static String androidID;
+    // Handlers
     private static Handler iniHandler;
     static Handler viewHandler;
     static Handler ctrlHandler;
+
+    // May be used in other classes
+    static String androidID;
     static ArrayList<String> macList;
+    static int dir = 0;
+    static String flag;
 
     // Variables in updating UI
     private LinearLayout upperContentView;
     private ArrayList<String> createdMac;
-    private boolean nowRunning = false;
-    private boolean noErr = false;
+
+    // Buttons
+    Button startButton;
+    Button stopButton;
 
     // Service intent
     private Intent markerInt;
@@ -54,9 +66,6 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-        // ID
-        androidID = Settings.Secure.getString(getApplicationContext().getContentResolver(), Settings.Secure.ANDROID_ID);
 
         // Handlers
         iniHandler = new IniHandler(this);
@@ -68,39 +77,76 @@ public class MainActivity extends AppCompatActivity {
         createdMac = new ArrayList<>();
 
         //Service
-        markerInt = new Intent(this, MarkerCom.class);
+        androidID = Settings.Secure.getString(getApplicationContext().getContentResolver(), Settings.Secure.ANDROID_ID);
         macList = new ArrayList<>();
+        markerInt = new Intent(this, MarkerCom.class);
 
         // First step of initialization
         ProgressBar pb = new ProgressBar(this);
         upperContentView.addView(pb);
         checkInternet();
+
+        final EditText flagText = findViewById(R.id.flagText);
+
+        startButton = findViewById(R.id.button);
+        startButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                String input = flagText.getText().toString();
+                if (!input.equals("")) {
+                    flagText.setEnabled(false);
+                    startButton.setEnabled(false);
+                    flag = input;
+                    dir = 1;
+                    stopButton.setEnabled(true);
+                } else {
+                    Toast toast = Toast.makeText(getApplicationContext(),
+                            "Flag cannot be empty.", Toast.LENGTH_LONG);
+                    toast.setGravity(Gravity.CENTER, 0, 0);
+                    toast.show();
+                }
+            }
+        });
+
+        stopButton = findViewById(R.id.button2);
+        stopButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                stopButton.setEnabled(false);
+                flag = null;
+                dir = 0;
+                createdMac.clear();
+                upperContentView.removeAllViews();
+                flagText.setEnabled(true);
+                startButton.setEnabled(true);
+            }
+        });
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        MarkerCom.dir = 1;
-        nowRunning = true;
+        if (flag != null) {
+            dir = 1;
+        }
     }
 
     @Override
     protected void onPause() {
-        nowRunning = false;
-        MarkerCom.dir = 0;
+        dir = 0;
         super.onPause();
     }
 
     @Override
     protected void onDestroy() {
-        // Stop MarkerCom
+        // Stop service
         stopService(markerInt);
         super.onDestroy();
     }
 
     private void popAlert(String text) {
-        // Stop handle messages
-        noErr = false;
+        // Stop service
+        stopService(markerInt);
         // Pop dialog
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setCancelable(false);
@@ -222,9 +268,9 @@ public class MainActivity extends AppCompatActivity {
             }
 
             // Ini step 4: Start service
-            upperContentView.removeViewAt(0);
-            noErr = true;
             startService(markerInt);
+            upperContentView.removeViewAt(0);
+            startButton.setEnabled(true);
         }
 
         @Override
@@ -246,13 +292,11 @@ public class MainActivity extends AppCompatActivity {
             MainActivity mainActivity = weakReference.get();
             super.handleMessage(msg);
             if (mainActivity != null) {
-                if (mainActivity.nowRunning && mainActivity.noErr) {
-                    try {
-                        JSONObject deviceInfo = (JSONObject) msg.obj;
-                        mainActivity.updateUI(deviceInfo);
-                    } catch (JSONException e) {
-                        e.printStackTrace();
-                    }
+                try {
+                    JSONObject deviceInfo = (JSONObject) msg.obj;
+                    mainActivity.updateUI(deviceInfo);
+                } catch (JSONException e) {
+                    e.printStackTrace();
                 }
             }
         }
@@ -321,10 +365,8 @@ public class MainActivity extends AppCompatActivity {
             MainActivity mainActivity = weakReference.get();
             super.handleMessage(msg);
             if (mainActivity != null) {
-                if (mainActivity.nowRunning && mainActivity.noErr) {
-                    if (msg.what == 0) {
-                        mainActivity.popAlert(String.format(Locale.getDefault(), "Cannot upload data.(%d)", msg.arg1));
-                    }
+                if (msg.what == 0) {
+                    mainActivity.popAlert(String.format(Locale.getDefault(), "Cannot upload data.(%d)", msg.arg1));
                 }
             }
         }

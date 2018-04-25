@@ -36,19 +36,17 @@ public class MarkerCom extends Service {
     // Bluetooth Adapter Instance
     private BluetoothAdapter mBluetoothAdapter;
 
-    // Handler: DirHandler
-    static int dir = 1;
     static String destMac;
     private boolean testMode = false;
 
     @Override
     public void onCreate() {
         super.onCreate();
-        lock = new ReentrantLock();
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        lock = new ReentrantLock();
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         mBluetoothAdapter.startLeScan(mLeScanCallback);
         startUpload();
@@ -78,9 +76,9 @@ public class MarkerCom extends Service {
 
             String mac = device.getAddress();
             //For updating UI
-            if (dir == 1 && (MainActivity.macList.contains(mac) || testMode)) {
+            if (MainActivity.dir == 1 && (MainActivity.macList.contains(mac) || testMode)) {
                 sendInfo(mac, rssi);
-            } else if (dir == 2 && destMac.equals(mac)) {
+            } else if (MainActivity.dir == 2 && destMac.equals(mac)) {
                 Message msg = new Message();
                 msg.arg1 = rssi;
                 DetailActivity.viewHandler.sendMessage(msg);

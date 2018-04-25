@@ -58,20 +58,21 @@ public class DetailActivity extends AppCompatActivity {
         chronometer.start();
 
         // Button action
-        Button stopButton = findViewById(R.id.stopButton);
+        final Button stopButton = findViewById(R.id.stopButton);
         stopButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                stopButton.setEnabled(false);
                 // Stop updating UI
                 nowStop = true;
                 chronometer.stop();
                 // Stop sending messages
-                MarkerCom.dir = 0;
+                MainActivity.dir = 0;
             }
         });
 
         // Start sending messages
-        MarkerCom.dir = 2;
+        MainActivity.dir = 2;
         MarkerCom.destMac = mac;
     }
 
