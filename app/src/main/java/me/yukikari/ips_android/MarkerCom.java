@@ -4,7 +4,6 @@ import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
-import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 
@@ -17,7 +16,6 @@ import cz.msebera.android.httpclient.Header;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.lang.ref.WeakReference;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -39,14 +37,13 @@ public class MarkerCom extends Service {
     private BluetoothAdapter mBluetoothAdapter;
 
     // Handler: DirHandler
-    static Handler dirHandler;
-    private int dir = 1;
-    private String filter;
+    static int dir = 1;
+    static String destMac;
+    private boolean testMode = false;
 
     @Override
     public void onCreate() {
         super.onCreate();
-        dirHandler = new DirHandler(this);
         lock = new ReentrantLock();
     }
 
@@ -81,9 +78,9 @@ public class MarkerCom extends Service {
 
             String mac = device.getAddress();
             //For updating UI
-            if (dir == 1 && MainActivity.macList.contains(mac)) {
+            if (dir == 1 && (MainActivity.macList.contains(mac) || testMode)) {
                 sendInfo(mac, rssi);
-            } else if (dir == 2 && filter.equals(mac)) {
+            } else if (dir == 2 && destMac.equals(mac)) {
                 Message msg = new Message();
                 msg.arg1 = rssi;
                 DetailActivity.viewHandler.sendMessage(msg);
@@ -102,8 +99,7 @@ public class MarkerCom extends Service {
     // Method: Get current time
     private String getCurTime() {
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
-        Date curDate = new Date(System.currentTimeMillis());
-        return formatter.format(curDate);
+        return formatter.format(new Date());
     }
 
     // Method: Send message to update UI
@@ -184,7 +180,7 @@ public class MarkerCom extends Service {
         AsyncHttpClient client = new AsyncHttpClient();
         RequestParams params = new RequestParams();
         params.put("jsonIn", jsonIn.toString());
-        client.post(Info.ipAddr + "/IPS_Server/UploadData", params, mTextHttpResponseHandler);
+        client.post(getResources().getString(R.string.server_context) + "UploadData", params, mTextHttpResponseHandler);
     }
 
     // Handler: Http Response
@@ -215,23 +211,4 @@ public class MarkerCom extends Service {
             MainActivity.ctrlHandler.sendMessage(msg);
         }
     };
-
-    // Handler: Message sending direction
-    private static class DirHandler extends Handler {
-        private final WeakReference<MarkerCom> weakReference;
-
-        DirHandler(MarkerCom markerComInstance) {
-            weakReference = new WeakReference<>(markerComInstance);
-        }
-
-        @Override
-        public void handleMessage(Message msg) {
-            MarkerCom markerCom = weakReference.get();
-            super.handleMessage(msg);
-            if (markerCom != null) {
-                markerCom.dir = msg.arg1;
-                markerCom.filter = (String) msg.obj;
-            }
-        }
-    }
 }

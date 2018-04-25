@@ -65,18 +65,14 @@ public class DetailActivity extends AppCompatActivity {
                 // Stop updating UI
                 nowStop = true;
                 chronometer.stop();
-                // Send stop message
-                Message msg = new Message();
-                msg.arg1 = 0;
-                MarkerCom.dirHandler.sendMessage(msg);
+                // Stop sending messages
+                MarkerCom.dir = 0;
             }
         });
 
-        // Send start message
-        Message msg = new Message();
-        msg.arg1 = 2;
-        msg.obj = mac;
-        MarkerCom.dirHandler.sendMessage(msg);
+        // Start sending messages
+        MarkerCom.dir = 2;
+        MarkerCom.destMac = mac;
     }
 
     private void updateUI(int rssi) {

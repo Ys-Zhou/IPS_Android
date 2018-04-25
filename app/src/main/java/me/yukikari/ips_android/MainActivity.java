@@ -80,22 +80,14 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (MarkerCom.dirHandler != null) {
-            Message msg = new Message();
-            msg.arg1 = 1;
-            MarkerCom.dirHandler.sendMessage(msg);
-        }
+        MarkerCom.dir = 1;
         nowRunning = true;
     }
 
     @Override
     protected void onPause() {
         nowRunning = false;
-        if (MarkerCom.dirHandler != null) {
-            Message msg = new Message();
-            msg.arg1 = 0;
-            MarkerCom.dirHandler.sendMessage(msg);
-        }
+        MarkerCom.dir = 0;
         super.onPause();
     }
 
@@ -212,7 +204,7 @@ public class MainActivity extends AppCompatActivity {
 
         AsyncHttpClient client = new AsyncHttpClient();
         RequestParams params = new RequestParams();
-        client.post(Info.ipAddr + "/IPS_Server/GetMacList", params, mTextHttpResponseHandler);
+        client.post(getResources().getString(R.string.server_context) + "GetMacList", params, mTextHttpResponseHandler);
     }
 
     // Ini step 3.1: Handle Http Response
