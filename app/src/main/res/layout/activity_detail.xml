@@ -125,4 +125,14 @@
         android:text="@string/def_text"
         app:layout_constraintStart_toEndOf="@+id/timeLable"
         app:layout_constraintTop_toBottomOf="@+id/scanText" />
+
+    <Button
+        android:id="@+id/stopButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:text="@string/stop_button"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/timeLable" />
 </android.support.constraint.ConstraintLayout>

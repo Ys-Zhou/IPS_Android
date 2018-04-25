@@ -8,4 +8,5 @@
     <string name="avg_label">Avg Rssi:</string>
     <string name="scan_label">Scan Times:</string>
     <string name="time_label">Elapsed time:</string>
+    <string name="stop_button">Stop</string>
 </resources>

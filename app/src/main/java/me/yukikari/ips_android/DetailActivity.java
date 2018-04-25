@@ -6,6 +6,8 @@ import android.os.Message;
 import android.os.SystemClock;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
 import android.widget.Chronometer;
 import android.widget.TextView;
 
@@ -22,8 +24,10 @@ public class DetailActivity extends AppCompatActivity {
     private int maxRssi = -999;
     private int sumRssi = 0;
     private int scanTimes = 0;
+    private boolean nowStop = false;
 
-    // TextViews
+    // Views
+    private Chronometer chronometer;
     private TextView minText;
     private TextView maxText;
     private TextView avgText;
@@ -42,20 +46,33 @@ public class DetailActivity extends AppCompatActivity {
         avgText = findViewById(R.id.avgText);
         scanText = findViewById(R.id.scanText);
 
-        // Get parameter
+        // Set mac
         Intent intent = getIntent();
         String mac = intent.getStringExtra("MAC");
-
-        // Set MAC
         TextView macText = findViewById(R.id.macText);
         macText.setText(mac);
 
         // Set chronometer
-        Chronometer chronometer = findViewById(R.id.chronometer);
+        chronometer = findViewById(R.id.chronometer);
         chronometer.setBase(SystemClock.elapsedRealtime());
         chronometer.start();
 
-        // Send message to Bluetooth service
+        // Button action
+        Button stopButton = findViewById(R.id.stopButton);
+        stopButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // Stop updating UI
+                nowStop = true;
+                chronometer.stop();
+                // Send stop message
+                Message msg = new Message();
+                msg.arg1 = 0;
+                MarkerCom.dirHandler.sendMessage(msg);
+            }
+        });
+
+        // Send start message
         Message msg = new Message();
         msg.arg1 = 2;
         msg.obj = mac;
@@ -88,7 +105,7 @@ public class DetailActivity extends AppCompatActivity {
         public void handleMessage(Message msg) {
             DetailActivity detailActivity = weakReference.get();
             super.handleMessage(msg);
-            if (detailActivity != null) {
+            if (detailActivity != null && !detailActivity.nowStop) {
                 int rssi = msg.arg1;
                 detailActivity.updateUI(rssi);
             }

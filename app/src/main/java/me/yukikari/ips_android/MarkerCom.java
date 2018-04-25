@@ -150,7 +150,7 @@ public class MarkerCom extends Service {
                                     for (int rssi : entry.getValue()) {
                                         sumRssi += rssi;
                                     }
-                                    uploadData(entry.getKey(), sumRssi / entry.getValue().size());
+//                                    uploadData(entry.getKey(), sumRssi / entry.getValue().size());
                                 }
                             }
                         } finally {
