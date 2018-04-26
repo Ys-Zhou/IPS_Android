@@ -13,6 +13,7 @@ import com.loopj.android.http.TextHttpResponseHandler;
 
 import cz.msebera.android.httpclient.Header;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -26,8 +27,6 @@ import java.util.concurrent.locks.ReentrantLock;
 public class MarkerCom extends Service {
     // Upload frequency (Unit: second)
     private int upFrq = 15;
-    // Data will not be upload if the number of data is less than this
-    private int lim = 3;
 
     // Thread sync
     private boolean exit = false;
@@ -87,7 +86,9 @@ public class MarkerCom extends Service {
             //For calculating average RSSI
             lock.lock();
             try {
-                addData(mac, rssi);
+                if (MainActivity.flag != null) {
+                    addData(mac, rssi);
+                }
             } finally {
                 lock.unlock();
             }
@@ -138,15 +139,11 @@ public class MarkerCom extends Service {
                         Thread.sleep(1000 * upFrq);
                         lock.lock();
                         try {
-                            for (HashMap.Entry<String, ArrayList<Integer>> entry : deviceData.entrySet()) {
-                                if (entry.getValue().size() >= lim) {
-                                    int sumRssi = 0;
-                                    for (int rssi : entry.getValue()) {
-                                        sumRssi += rssi;
-                                    }
-//                                    uploadData(entry.getKey(), sumRssi / entry.getValue().size());
-                                }
+                            if (MainActivity.flag != null) {
+                                uploadData();
                             }
+                        } catch (JSONException e) {
+                            e.printStackTrace();
                         } finally {
                             lock.unlock();
                         }
@@ -163,17 +160,21 @@ public class MarkerCom extends Service {
     }
 
     // Method: Http Request (Async)
-    private void uploadData(String mac, int rssi) {
-
+    private void uploadData() throws JSONException {
         JSONObject jsonIn = new JSONObject();
-        try {
-            jsonIn.put("androidID", MainActivity.androidID);
-            jsonIn.put("markerMac", mac);
-            jsonIn.put("date", getCurTime());
-            jsonIn.put("rssi", rssi);
-        } catch (JSONException e) {
-            e.printStackTrace();
+        jsonIn.put("androidID", MainActivity.androidID);
+        jsonIn.put("date", getCurTime());
+        jsonIn.put("flag", MainActivity.flag);
+
+        JSONArray beaconArray = new JSONArray();
+        for (HashMap.Entry<String, ArrayList<Integer>> entry : deviceData.entrySet()) {
+            JSONObject beacon = new JSONObject();
+            beacon.put("mac", entry.getKey());
+            JSONArray rssis = new JSONArray(entry.getValue());
+            beacon.put("rssis", rssis);
+            beaconArray.put(beacon);
         }
+        jsonIn.put("beacons", beaconArray);
 
         AsyncHttpClient client = new AsyncHttpClient();
         RequestParams params = new RequestParams();
