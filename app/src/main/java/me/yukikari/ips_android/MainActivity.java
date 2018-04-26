@@ -14,7 +14,6 @@ import android.os.Message;
 import android.provider.Settings;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
@@ -47,7 +46,7 @@ public class MainActivity extends AppCompatActivity {
     // May be used in other classes
     static String androidID;
     static ArrayList<String> macList;
-    static int dir = 0;
+    static int dir;
     static String flag;
 
     // Variables in updating UI
@@ -79,6 +78,8 @@ public class MainActivity extends AppCompatActivity {
         //Service
         androidID = Settings.Secure.getString(getApplicationContext().getContentResolver(), Settings.Secure.ANDROID_ID);
         macList = new ArrayList<>();
+        dir = 0;
+        flag = null;
         markerInt = new Intent(this, MarkerCom.class);
 
         // First step of initialization
@@ -186,11 +187,11 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void run() {
                 Message msg = new Message();
-                msg.what = 2;
+                msg.what = 102;
                 if (openBluetooth()) {
-                    msg.arg1 = 1;
+                    msg.arg1 = 101;
                 } else {
-                    msg.arg1 = 0;
+                    msg.arg1 = 100;
                 }
                 MainActivity.iniHandler.sendMessage(msg);
             }
@@ -233,10 +234,10 @@ public class MainActivity extends AppCompatActivity {
             super.handleMessage(msg);
             if (mainActivity != null) {
                 switch (msg.what) {
-                    case 2:
-                        if (msg.arg1 == 0) {
+                    case 102:
+                        if (msg.arg1 == 100) {
                             mainActivity.popAlert("Cannot open Bluetooth adapter.");
-                        } else if (msg.arg1 == 1) {
+                        } else if (msg.arg1 == 101) {
                             mainActivity.getMacList();
                         }
                         break;
@@ -365,7 +366,7 @@ public class MainActivity extends AppCompatActivity {
             MainActivity mainActivity = weakReference.get();
             super.handleMessage(msg);
             if (mainActivity != null) {
-                if (msg.what == 0) {
+                if (msg.what == 100) {
                     mainActivity.popAlert(String.format(Locale.getDefault(), "Cannot upload data.(%d)", msg.arg1));
                 }
             }

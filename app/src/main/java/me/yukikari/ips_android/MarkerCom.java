@@ -38,6 +38,9 @@ public class MarkerCom extends Service {
     static String destMac;
     private boolean testMode = false;
 
+    // Device set
+    private HashMap<String, ArrayList<Integer>> deviceData;
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -47,6 +50,7 @@ public class MarkerCom extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         lock = new ReentrantLock();
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        deviceData = new HashMap<>();
         mBluetoothAdapter.startLeScan(mLeScanCallback);
         startUpload();
         return super.onStartCommand(intent, flags, startId);
@@ -63,9 +67,6 @@ public class MarkerCom extends Service {
     public IBinder onBind(Intent intent) {
         return null;
     }
-
-    // Device set
-    private HashMap<String, ArrayList<Integer>> deviceData = new HashMap<>();
 
     // Callback: Scan devices
     private BluetoothAdapter.LeScanCallback mLeScanCallback = new BluetoothAdapter.LeScanCallback() {
@@ -86,7 +87,7 @@ public class MarkerCom extends Service {
             //For calculating average RSSI
             lock.lock();
             try {
-                if (MainActivity.flag != null) {
+                if (MainActivity.flag != null && MainActivity.macList.contains(mac)) {
                     addData(mac, rssi);
                 }
             } finally {
@@ -141,6 +142,7 @@ public class MarkerCom extends Service {
                         try {
                             if (MainActivity.flag != null) {
                                 uploadData();
+                                deviceData.clear();
                             }
                         } catch (JSONException e) {
                             e.printStackTrace();
@@ -150,8 +152,8 @@ public class MarkerCom extends Service {
                     }
                 } catch (InterruptedException e) {
                     Message msg = new Message();
-                    msg.what = 0;
-                    msg.arg1 = 0;
+                    msg.what = 100;
+                    msg.arg1 = 1;
                     MainActivity.ctrlHandler.sendMessage(msg);
                 }
             }
@@ -183,29 +185,30 @@ public class MarkerCom extends Service {
     }
 
     // Handler: Http Response
-    private TextHttpResponseHandler mTextHttpResponseHandler = new TextHttpResponseHandler() {
+    private static TextHttpResponseHandler mTextHttpResponseHandler = new TextHttpResponseHandler() {
 
         @Override
         public void onSuccess(int statusCode, Header[] headers, String response) {
 
-            Message msg = new Message();
+
             try {
                 JSONObject jsonOut = new JSONObject(response);
                 int requestStat = jsonOut.getInt("addLogStmt");
-                if (requestStat == 0) {
-                    msg.what = 0;
+                if (requestStat == 100) {
+                    Message msg = new Message();
+                    msg.what = 100;
                     msg.arg1 = statusCode;
+                    MainActivity.ctrlHandler.sendMessage(msg);
                 }
             } catch (JSONException e) {
                 e.printStackTrace();
             }
-            MainActivity.ctrlHandler.sendMessage(msg);
         }
 
         @Override
         public void onFailure(int statusCode, Header[] headers, String response, Throwable error) {
             Message msg = new Message();
-            msg.what = 0;
+            msg.what = 100;
             msg.arg1 = statusCode;
             MainActivity.ctrlHandler.sendMessage(msg);
         }
